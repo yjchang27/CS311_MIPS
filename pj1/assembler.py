@@ -15,7 +15,7 @@ labels = dict()
 instrs = []
 
 # file open
-import sys
+import sys, os
 fname = sys.argv[1]
 print(fname)
 f = open(fname, 'r')
@@ -110,7 +110,9 @@ print('\n')
 ### END DEBUG
 
 # second pass
-f = open(fname[:-2]+'.my.o', 'w')
+base = os.path.basename(fname)
+fname2 = os.path.splitext(base)[0]
+f = open(fname2+'.o', 'w')
 ###
 # initialization
 # instruction types
