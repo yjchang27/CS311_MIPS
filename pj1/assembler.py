@@ -7,13 +7,17 @@ print("---------\n")
 
 # initialize
 from collections import namedtuple
+__TEXT__ = 0x400000
+__DATA__ = 0x10000000
 symbols = dict()
 data = []
 labels = dict()
 instrs = []
 
 # file open
-fname = "example2.s"
+import sys
+fname = sys.argv[1]
+print(fname)
 f = open(fname, 'r')
 
 # first pass
@@ -53,10 +57,25 @@ for line in f:
         if tokens[0][-1] == ':':
             labels[tokens[0][:-1]] = pc
         else:
-            instrs.append(tuple(tokens))
-            pc += 1
             if tokens[0] == 'la':
-                tokens[0] = 'la2'
+                # interprete data symbols
+                addr = __DATA__ + symbols[tokens[2]] * 4
+                print("addr: {0:08x}  {0:032b}".format(addr))
+                upper = addr >> 16
+                lower = addr % (1<<16)
+                # lui upper
+                tokens[0] = "lui"
+                tokens[2] = str(upper)
+                instrs.append(tuple(tokens))
+                pc += 1
+                # ori lower
+                if lower != 0:
+                    tokens[0] = "ori"
+                    tokens[2] = tokens[1]
+                    tokens.append(str(lower))
+                    instrs.append(tuple(tokens))
+                    pc += 1
+            else:
                 instrs.append(tuple(tokens))
                 pc += 1
         continue
@@ -84,6 +103,10 @@ print('\n')
 print("### instructions")
 for instr in instrs:
     print('\t'.join(instr))
+print('\n')
+
+print("### total # of instructions = %d" % pc)
+print('\n')
 ### END DEBUG
 
 # second pass
@@ -97,12 +120,15 @@ InstrJ = namedtuple('J', 'op address')
 # encoding
 def encode(instr):
     if type(instr) == InstrR:
+        # ??? should we consider two's complement of shamt?
         return "{0.op:06b}{0.rs:05b}{0.rt:05b}{0.rd:05b}{0.shamt:05b}{0.funct:06b}".format(instr)
     elif type(instr) == InstrI:
-        # !!! should consider two's complement
+        # consider two's complement (immediate)
         if instr.immediate < 0:
-            return "{0.op:06b}{0.rs:05b}{0.rt:05b}{1:016b}".format(instr, (2<<15) + instr.immediate)
-        return "{0.op:06b}{0.rs:05b}{0.rt:05b}{0.immediate:016b}".format(instr)
+            immediate = (1<<16) + instr.immediate
+        else:
+            immediate = instr.immediate
+        return "{0.op:06b}{0.rs:05b}{0.rt:05b}{1:016b}".format(instr, immediate)
     elif type(instr) == InstrJ:
         return "{0.op:06b}{0.address:026b}".format(instr)
     return None
@@ -135,13 +161,59 @@ f.write("{0:032b}".format(len(instrs)*4))
 f.write("{0:032b}".format(len(data)*4))
 ###
 # text
-for instr in instrs:
+for pc, instr in enumerate(instrs):
     if instr[0] in instr_refs:
-        print(instr_refs[instr[0]])
+        ref = instr_refs[instr[0]]
+        if type(ref) == InstrR:
+            # instr $d, $s, $t
+            # op rs rt rd shamt funct
+            rd = int(instr[1][1:])
+            # exception: sll srl
+            if instr[0] == "sll" or instr[0] == "srl":
+                rs = 0
+                rt = int(instr[2][1:])
+                shamt = int(instr[3])
+            else:
+                rs = int(instr[2][1:])
+                rt = int(instr[3][1:])
+                shamt = ref.shamt
+            _instr = InstrR(ref.op, rs, rt, rd, shamt, ref.funct)
+            print(encode(_instr) + '\t' + '\t'.join(instr))
+            f.write(encode(_instr))
+        elif type(ref) == InstrI:
+            # instr $t, $s, C
+            # op rs rt immediate
+            rt = int(instr[1][1:])
+            # exception: lui
+            if instr[0] == "lui":
+                rs = 0
+                C = int(instr[2],0)
+            else:
+                rs = int(instr[2][1:])
+                # exception: beq bne
+                if instr[0] == "beq" or instr[0] == "bne":
+                    rs, rt = rt, rs
+                # immediate or offset
+                if instr[3] in labels:
+                    C = labels[instr[3]] - pc - 1
+                else:
+                    C = int(instr[3],0)
+            _instr = InstrI(ref.op, rs, rt, C)
+            print(encode(_instr) + '\t' + '\t'.join(instr))
+            f.write(encode(_instr))
+        else:
+            # instr C
+            # op address
+            address = __TEXT__ + labels[instr[1]] * 4
+            _instr = InstrJ(ref.op, (address>>2) % (1<<26))
+            print(encode(_instr) + '\t' + '\t'.join(instr))
+            f.write(encode(_instr))
     else:
-        print(instr[0])
+        raise NotImplementedError("Unsupported instruction \"%s\"." % instr[0])
 ###
 # data
 for datum in data:
     if datum[0] == ".word":
         f.write("{:032b}".format(int(datum[1],0)))
+
+f.close()
