@@ -1,1 +1,2 @@
-*.my.o
+*.o
+!*.solution.o
