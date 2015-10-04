@@ -216,6 +216,8 @@ for pc, instr in enumerate(instrs):
 # data
 for datum in data:
     if datum[0] == ".word":
-        f.write("{:032b}".format(int(datum[1],0)))
+        value = int(datum[1],0)
+        if value < 0: value = (1<<32) - value
+        f.write("{:032b}".format(value))
 
 f.close()
