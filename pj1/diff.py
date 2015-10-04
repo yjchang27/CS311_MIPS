@@ -22,74 +22,75 @@ if args.source: src = open(args.source, "r")
 
 ###
 # SOURCE
-from collections import namedtuple
-__TEXT__ = 0x400000
-__DATA__ = 0x10000000
-symbols = dict()
-data = []
-labels = dict()
-instrs = []
-# first pass
-dc = 0
-pc = 0
-for line in src:
-    # skip if blankline or comments
-    if line.strip() == '': continue
-    if line.strip()[0] == '#': continue
+if args.source:
+    from collections import namedtuple
+    __TEXT__ = 0x400000
+    __DATA__ = 0x10000000
+    symbols = dict()
+    data = []
+    labels = dict()
+    instrs = []
+    # first pass
+    dc = 0
+    pc = 0
+    for line in src:
+        # skip if blankline or comments
+        if line.strip() == '': continue
+        if line.strip()[0] == '#': continue
 
-    # clean up instruction
-    tokens = line.strip().split()
-    for idx, tok in enumerate(tokens[1:-1]):
-        tokens[idx+1] = tok.strip(',')
+        # clean up instruction
+        tokens = line.strip().split()
+        for idx, tok in enumerate(tokens[1:-1]):
+            tokens[idx+1] = tok.strip(',')
 
-    # detect section
-    if '.' == tokens[0][0] and len(tokens) == 1:
-        section = tokens[0][1:]
-        continue
+        # detect section
+        if '.' == tokens[0][0] and len(tokens) == 1:
+            section = tokens[0][1:]
+            continue
 
-    ###
-    # .data section
-    # detect symbol
-    if section == 'data':
-        if tokens[0][-1] == ':':
-            symbols[tokens[0][:-1]] = dc
-            data.append(tuple(tokens[1:]))
-            dc += 1
-        else:
-            data.append(tuple(tokens))
-            dc += 1
-        continue
+        ###
+        # .data section
+        # detect symbol
+        if section == 'data':
+            if tokens[0][-1] == ':':
+                symbols[tokens[0][:-1]] = dc
+                data.append(tuple(tokens[1:]))
+                dc += 1
+            else:
+                data.append(tuple(tokens))
+                dc += 1
+            continue
 
-    ###
-    # .text section
-    if section == 'text':
-        if tokens[0][-1] == ':':
-            labels[tokens[0][:-1]] = pc
-        else:
-            if tokens[0] == 'la':
-                # interprete data symbols
-                addr = __TEXT__ + 0x20 * symbols[tokens[2]]
-                upper = addr >> 16
-                lower = addr % (1<<16)
-                # lui upper
-                tokens[0] = "lui"
-                tokens[2] = str(upper)
-                instrs.append(tuple(tokens))
-                pc += 1
-                # ori lower
-                if lower != 0:
-                    tokens[0] = "ori"
-                    tokens[2] = tokens[1]
-                    tokens.append(str(lower))
+        ###
+        # .text section
+        if section == 'text':
+            if tokens[0][-1] == ':':
+                labels[tokens[0][:-1]] = pc
+            else:
+                if tokens[0] == 'la':
+                    # interprete data symbols
+                    addr = __TEXT__ + 0x20 * symbols[tokens[2]]
+                    upper = addr >> 16
+                    lower = addr % (1<<16)
+                    # lui upper
+                    tokens[0] = "lui"
+                    tokens[2] = str(upper)
                     instrs.append(tuple(tokens))
                     pc += 1
-            else:
-                instrs.append(tuple(tokens))
-                pc += 1
-        continue
-    # end for loop
-src.close()
-# end first pass
+                    # ori lower
+                    if lower != 0:
+                        tokens[0] = "ori"
+                        tokens[2] = tokens[1]
+                        tokens.append(str(lower))
+                        instrs.append(tuple(tokens))
+                        pc += 1
+                else:
+                    instrs.append(tuple(tokens))
+                    pc += 1
+            continue
+        # end for loop
+    src.close()
+    # end first pass
 
 
 
