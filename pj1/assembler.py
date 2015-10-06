@@ -15,8 +15,14 @@ labels = dict()
 instrs = []
 
 # file open
-import sys, os
-fname = sys.argv[1]
+import argparse, os
+parser = argparse.ArgumentParser()
+parser.add_argument("source", type=str,
+                    help="MIPS instruction file")
+parser.add_argument("-o", "--output", metavar="FILE", type=str,
+                    help="write output to FILE")
+args = parser.parse_args()
+fname = args.source
 print(fname)
 f = open(fname, 'r')
 
@@ -110,9 +116,12 @@ print('\n')
 ### END DEBUG
 
 # second pass
-base = os.path.basename(fname)
-fname2 = os.path.splitext(base)[0]
-f = open(fname2+'.o', 'w')
+if args.output:
+    f = open(args.output, 'w')
+else:
+    base = os.path.basename(fname)
+    fname2 = os.path.splitext(base)[0]
+    f = open(fname2+'.o', 'w')
 ###
 # initialization
 # instruction types
