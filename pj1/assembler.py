@@ -15,7 +15,7 @@ labels = dict()
 instrs = []
 
 # file open
-import argparse, os
+import argparse, os, re
 parser = argparse.ArgumentParser()
 parser.add_argument("source", type=str,
                     help="MIPS instruction file")
@@ -178,13 +178,18 @@ for pc, instr in enumerate(instrs):
         if type(ref) == InstrR:
             # instr $d, $s, $t
             # op rs rt rd shamt funct
-            rd = int(instr[1][1:])
-            # exception: sll srl
             if instr[0] == "sll" or instr[0] == "srl":
+                rd = int(instr[1][1:])
                 rs = 0
                 rt = int(instr[2][1:])
-                shamt = int(instr[3])
+                shamt = int(instr[3], 0)
+            elif instr[0] == "jr":
+                rd = ref.rd
+                rs = int(instr[1][1:])
+                rt = ref.rt
+                shamt = ref.shamt
             else:
+                rd = int(instr[1][1:])
                 rs = int(instr[2][1:])
                 rt = int(instr[3][1:])
                 shamt = ref.shamt
@@ -194,21 +199,27 @@ for pc, instr in enumerate(instrs):
         elif type(ref) == InstrI:
             # instr $t, $s, C
             # op rs rt immediate
-            rt = int(instr[1][1:])
-            # exception: lui
             if instr[0] == "lui":
+                rt = int(instr[1][1:])
                 rs = 0
                 C = int(instr[2],0)
-            else:
-                rs = int(instr[2][1:])
-                # exception: beq bne
-                if instr[0] == "beq" or instr[0] == "bne":
-                    rs, rt = rt, rs
+            elif instr[0] == "beq" or instr[0] == "bne":
+                rs = int(instr[1][1:])
+                rt = int(instr[2][1:])
                 # immediate or offset
                 if instr[3] in labels:
                     C = labels[instr[3]] - pc - 1
                 else:
                     C = int(instr[3],0)
+            elif instr[0] == "lw" or instr[0] == "sw":
+                rt = int(instr[1][1:])
+                C, rs = re.match(r'^(-?\d+)\(\$(\d+)\)', instr[2]).groups()
+                C, rs = int(C), int(rs)
+            else:
+                rt = int(instr[1][1:])
+                rs = int(instr[2][1:])
+                C  = int(instr[3],0)
+            # negative value
             _instr = InstrI(ref.op, rs, rt, C)
             print(encode(_instr) + '\t' + '\t'.join(instr))
             f.write(encode(_instr))
