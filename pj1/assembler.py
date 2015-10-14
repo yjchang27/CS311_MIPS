@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-print()
+print("")
 print("ASSEMBLER")
 print("---------\n")
 
@@ -23,7 +23,6 @@ parser.add_argument("-o", "--output", metavar="FILE", type=str,
                     help="write output to FILE")
 args = parser.parse_args()
 fname = args.source
-print(fname)
 f = open(fname, 'r')
 
 # first pass
@@ -66,7 +65,6 @@ for line in f:
             if tokens[0] == 'la':
                 # interprete data symbols
                 addr = __DATA__ + symbols[tokens[2]] * 4
-                print("addr: {0:08x}  {0:032b}".format(addr))
                 upper = addr >> 16
                 lower = addr % (1<<16)
                 # lui upper
@@ -90,38 +88,16 @@ for line in f:
 f.close()
 # end first pass
 
-### DEBUG
-print("### symbols")
-for sym, pos in symbols.items():
-    print("{0}\t{1}\t{2}".format(sym, pos, '\t'.join(data[pos])))
-print('\n')
-
-print("### data")
-for ty, datum in data:
-    print("{0}\t{1}".format(ty, datum))
-print('\n')
-
-print("### labels")
-for lab, loc in labels.items():
-    print("{0}\t{1}".format(lab, loc))
-print('\n')
-
-print("### instructions")
-for instr in instrs:
-    print('\t'.join(instr))
-print('\n')
-
-print("### total # of instructions = %d" % pc)
-print('\n')
-### END DEBUG
-
 # second pass
 if args.output:
+    print(fname + " --> " + args.output)
     f = open(args.output, 'w')
 else:
     base = os.path.basename(fname)
-    fname2 = os.path.splitext(base)[0]
-    f = open(fname2+'.o', 'w')
+    fname2 = os.path.splitext(base)[0] + '.o'
+    print(fname + " --> " + fname2)
+    f = open(fname2, 'w')
+print("")
 ###
 # initialization
 # instruction types
@@ -168,10 +144,13 @@ instr_refs = {
          }
 ###
 # header
+print("{0:032b}\t{0}".format(len(instrs)*4))
+print("{0:032b}\t{0}".format(len(data)*4))
 f.write("{0:032b}".format(len(instrs)*4))
 f.write("{0:032b}".format(len(data)*4))
 ###
 # text
+print("")
 for pc, instr in enumerate(instrs):
     if instr[0] in instr_refs:
         ref = instr_refs[instr[0]]
@@ -234,10 +213,12 @@ for pc, instr in enumerate(instrs):
         raise NotImplementedError("Unsupported instruction \"%s\"." % instr[0])
 ###
 # data
+print("")
 for datum in data:
     if datum[0] == ".word":
         value = int(datum[1],0)
         if value < 0: value = (1<<32) - value
+        print("{:032b}\t{}".format(value, '\t\t'.join(datum)))
         f.write("{:032b}".format(value))
 
 f.close()
