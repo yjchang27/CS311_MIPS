@@ -93,5 +93,10 @@ void		mdump(int start, int stop);
 void		rdump();
 void		init_memory();
 void		init_inst_info();
-
+uint32_t         sign_extend(short num);
+void        reg_write (unsigned char regNum, uint32_t value);
+uint32_t    reg_read (unsigned char regNum);
+void        instructionR (unsigned char *rs, unsigned char *rt, unsigned char *rd, unsigned char *shamt);
+void        instructionI (unsigned char *rd, unsigned char *rs, short *imm);
+void        instructionJ (uint32_t *target);
 #endif

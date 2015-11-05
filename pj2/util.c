@@ -18,7 +18,7 @@ mem_region_t MEM_REGIONS[] = {
     { MEM_TEXT_START, MEM_TEXT_SIZE, NULL },
     { MEM_DATA_START, MEM_DATA_SIZE, NULL },
 };
-
+//
 #define MEM_NREGIONS (sizeof(MEM_REGIONS)/sizeof(mem_region_t))
 
 /***************************************************************/
@@ -274,3 +274,39 @@ void init_inst_info() {
 	INST_INFO[i].r_t.target = 0;
     }
 }
+
+uint32_t sign_extend (short num) {
+        if (num < 0)
+                return 0xF << 16 | num;
+        else
+                return 0x0 << 16 | num;
+}
+
+void reg_write (unsigned char regNum, uint32_t value) {
+        CURRENT_STATE.REGS[regNum] = value;
+}
+
+uint32_t reg_read (unsigned char regNum) {
+        return CURRENT_STATE.REGS[regNum];
+}
+
+void instructionR (unsigned char *rs, unsigned char *rt, unsigned char *rd, unsigned char *shamt) {
+        instruction current = INST_INFO [(CURRENT_STATE.PC - 4 - MEM_TEXT_START) / 4];
+        *rs = current.r_t.r_i.rs;
+        *rt = current.r_t.r_i.rt;
+        *rd = current.r_t.r_i.r_i.r.rd;
+        *shamt = current.r_t.r_i.r_i.r.shamt;
+}
+
+void instructionI (unsigned char *rd, unsigned char *rs, short *imm) {
+        instruction current = INST_INFO [(CURRENT_STATE.PC - 4 - MEM_TEXT_START) / 4];
+        *rd = current.r_t.r_i.rs;
+        *rs = current.r_t.r_i.rt;
+        *imm = current.r_t.r_i.r_i.imm;
+}
+
+void instructionJ (uint32_t *target) {
+        instruction current = INST_INFO [(CURRENT_STATE.PC - 4 - MEM_TEXT_START) / 4];
+        *target = current.r_t.target;
+}
+
